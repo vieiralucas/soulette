@@ -1,10 +1,10 @@
 {
-  "name": "roulette",
+  "name": "soulette",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "ts-node index.ts",
+    "cli": "ts-node src/cli.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
