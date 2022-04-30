@@ -9,6 +9,9 @@ export default class MyDocument extends Document {
     return (
       <Html lang="en">
         <Head>
+          <title>Soulette</title>
+          <meta name="description" content="Roulette game using SOL" />
+          <link rel="icon" href="/favicon.ico" />
           <link
             rel="stylesheet"
             href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
