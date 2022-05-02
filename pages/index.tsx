@@ -1,17 +1,19 @@
+import LoadingButton from '@mui/lab/LoadingButton'
+import Alert, { AlertColor } from '@mui/material/Alert'
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import Container from '@mui/material/Container'
 import FormControl from '@mui/material/FormControl'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import FormLabel from '@mui/material/FormLabel'
 import Radio from '@mui/material/Radio'
 import RadioGroup from '@mui/material/RadioGroup'
+import Snackbar from '@mui/material/Snackbar'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import * as web3 from '@solana/web3.js'
-import type { NextPage } from 'next'
+import type { NextPage, GetServerSideProps } from 'next'
 import React, {
   FormEventHandler,
   useState,
@@ -21,8 +23,12 @@ import React, {
 
 import { treasuryWallet } from '../utility/solana'
 
-const Home: NextPage = () => {
+interface Props {
+  treasuryWallet: string
+}
+const Home: NextPage<Props> = (props) => {
   const [balance, setBalance] = useState(0)
+  const [loading, setLoading] = useState(false)
   const { connection } = useConnection()
   const { publicKey, sendTransaction } = useWallet()
 
@@ -84,6 +90,7 @@ const Home: NextPage = () => {
   const onSubmit: FormEventHandler = useCallback(
     (e) => {
       e.preventDefault()
+      setLoading(true)
 
       const amount = parseFloat(state.amount)
 
@@ -93,7 +100,7 @@ const Home: NextPage = () => {
       }
 
       const transaction = new web3.Transaction()
-      const recipientPubKey = treasuryWallet.publicKey
+      const recipientPubKey = new web3.PublicKey(props.treasuryWallet)
 
       const sendSolInstruction = web3.SystemProgram.transfer({
         fromPubkey: publicKey,
@@ -121,73 +128,178 @@ const Home: NextPage = () => {
         )
         .then((res) => res.json())
         .then((response) => {
-          console.log(response)
+          if (response.status === 'win') {
+            setSnackbar({
+              open: true,
+              severity: 'success',
+              message: 'You win!',
+            })
+            return
+          }
+
+          if (response.status === 'loss') {
+            setSnackbar({
+              open: true,
+              severity: 'error',
+              message: 'You lost. Better lucky next time.',
+            })
+            return
+          }
         })
-        .catch(console.error)
         .then(updateBalance)
+        .catch((err) => {
+          console.error(err)
+          setSnackbar({
+            open: true,
+            severity: 'error',
+            message: 'Something went wrong. =[',
+          })
+        })
+        .then(() => {
+          setLoading(false)
+        })
     },
     [state, updateBalance]
   )
 
-  return (
-    <Container maxWidth="md">
-      <Typography variant="h3" component="h1">
-        Soulette
-      </Typography>
-      <WalletMultiButton />
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    severity: 'success' as AlertColor,
+    message: 'You won!',
+  })
 
-      <form onSubmit={onSubmit}>
-        <TextField
-          label={`What is the amount of SOL you want to stake? (balance: ${balance})`}
-          fullWidth
-          value={state.amount}
-          onChange={onChangeAmount}
-        />
-        <Box>
-          <FormControl>
-            <FormLabel id="ratio-label">
-              What is the ratio of your staking?
-            </FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="ratio-label"
-              name="ratio"
-              value={state.ratio}
-              onChange={onChangeRatio}
-            >
-              <FormControlLabel value="0" control={<Radio />} label="1:1.25" />
-              <FormControlLabel value="1" control={<Radio />} label="1:1.5" />
-              <FormControlLabel value="2" control={<Radio />} label="1:1.75" />
-              <FormControlLabel value="3" control={<Radio />} label="1:2" />
-            </RadioGroup>
-          </FormControl>
+  const onCloseSnackbar = useCallback(() => {
+    setSnackbar({
+      ...snackbar,
+      open: false,
+    })
+  }, [snackbar])
+
+  return (
+    <>
+      <Container maxWidth="md">
+        <Box mt={2} mb={2} display="flex" justifyContent="space-between">
+          <Typography variant="h3" component="h1">
+            Soulette
+          </Typography>
+          <WalletMultiButton disabled={loading} />
         </Box>
-        <Box>
-          <FormControl>
-            <FormLabel id="guess-label">
-              Guess a random number from 1 to 5 (both 1, 5 included)
-            </FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="guess-label"
-              name="guess"
-              value={state.guess}
-              onChange={onChangeGuess}
-            >
-              <FormControlLabel value="0" control={<Radio />} label="1" />
-              <FormControlLabel value="1" control={<Radio />} label="2" />
-              <FormControlLabel value="2" control={<Radio />} label="3" />
-              <FormControlLabel value="3" control={<Radio />} label="4" />
-              <FormControlLabel value="4" control={<Radio />} label="5" />
-            </RadioGroup>
-          </FormControl>
-        </Box>
-        <Button type="submit" variant="contained">
-          Submit
-        </Button>
-      </form>
-    </Container>
+
+        <form onSubmit={onSubmit}>
+          <TextField
+            label={`What is the amount of SOL you want to stake? (balance: ${balance})`}
+            fullWidth
+            value={state.amount}
+            onChange={onChangeAmount}
+            disabled={loading}
+          />
+          <Box>
+            <FormControl>
+              <FormLabel id="ratio-label">
+                What is the ratio of your staking?
+              </FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="ratio-label"
+                name="ratio"
+                value={state.ratio}
+                onChange={onChangeRatio}
+              >
+                <FormControlLabel
+                  value="0"
+                  control={<Radio disabled={loading} />}
+                  label="1:1.25"
+                />
+                <FormControlLabel
+                  value="1"
+                  control={<Radio disabled={loading} />}
+                  label="1:1.5"
+                />
+                <FormControlLabel
+                  value="2"
+                  control={<Radio disabled={loading} />}
+                  label="1:1.75"
+                />
+                <FormControlLabel
+                  value="3"
+                  control={<Radio disabled={loading} />}
+                  label="1:2"
+                />
+              </RadioGroup>
+            </FormControl>
+          </Box>
+          <Box>
+            <FormControl>
+              <FormLabel id="guess-label">
+                Guess a random number from 1 to 5 (both 1, 5 included)
+              </FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="guess-label"
+                name="guess"
+                value={state.guess}
+                onChange={onChangeGuess}
+              >
+                <FormControlLabel
+                  value="0"
+                  control={<Radio disabled={loading} />}
+                  label="1"
+                />
+                <FormControlLabel
+                  value="1"
+                  control={<Radio disabled={loading} />}
+                  label="2"
+                />
+                <FormControlLabel
+                  value="2"
+                  control={<Radio disabled={loading} />}
+                  label="3"
+                />
+                <FormControlLabel
+                  value="3"
+                  control={<Radio disabled={loading} />}
+                  label="4"
+                />
+                <FormControlLabel
+                  value="4"
+                  control={<Radio disabled={loading} />}
+                  label="5"
+                />
+              </RadioGroup>
+            </FormControl>
+          </Box>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            loading={loading}
+            disabled={loading}
+          >
+            Submit
+          </LoadingButton>
+        </form>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={onCloseSnackbar}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+            onClose={onCloseSnackbar}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </>
   )
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => ({
+  props: {
+    treasuryWallet: treasuryWallet().publicKey.toString(),
+  },
+})
 
 export default Home

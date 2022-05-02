@@ -1,18 +1,30 @@
 import * as web3 from '@solana/web3.js'
 
 // Treasury
-const secretKey = [
-  111, 188, 76, 169, 30, 105, 254, 33, 228, 66, 56, 215, 9, 37, 51, 188, 188,
-  188, 20, 224, 228, 115, 17, 163, 151, 105, 113, 251, 105, 177, 28, 157, 125,
-  202, 195, 203, 253, 137, 26, 209, 7, 2, 66, 193, 76, 241, 203, 168, 213, 5,
-  226, 11, 142, 44, 125, 191, 167, 172, 166, 207, 176, 137, 210, 27,
-]
-export const treasuryWallet = web3.Keypair.fromSecretKey(
-  Uint8Array.from(secretKey)
-)
+export const treasuryWallet = () => {
+  const secretKey = JSON.parse(process.env.TREASURY_WALLET ?? '[]')
+  return web3.Keypair.fromSecretKey(Uint8Array.from(secretKey))
+}
+
+const cluster: web3.Cluster = (() => {
+  switch (process.env.NEXT_PUBLIC_CLUSTER) {
+    case undefined:
+      throw new Error('Missing CLUSTER environment variable')
+    case 'testnet':
+      return 'testnet'
+    case 'devnet':
+      return 'devnet'
+    case 'mainnet-beta':
+      return 'mainnet-beta'
+  }
+
+  throw new Error(
+    `Provided CLUSTER=${process.env.NEXT_PUBLIC_CLUSTER} is invalid`
+  )
+})()
 
 export const connection = new web3.Connection(
-  web3.clusterApiUrl('devnet'),
+  web3.clusterApiUrl(cluster),
   'confirmed'
 )
 
